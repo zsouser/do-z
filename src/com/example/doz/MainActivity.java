@@ -11,7 +11,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.app.Activity;
+import android.app.*;
 import android.view.Menu;
 import android.widget.*;
 import android.view.*;
@@ -19,11 +19,12 @@ import android.content.*;
 import android.database.sqlite.*;
 import android.database.*;
 import android.graphics.Color;
-public class MainActivity extends Activity implements ListView.OnItemClickListener {
+public class MainActivity extends Activity implements ListView.OnItemClickListener, Button.OnClickListener {
 
 	public static final int LOCATIONS = 1, LIST = 2;
 	public int flag = LIST;
 	public ListView list;
+	public Button create;
 	public SQLiteDatabase db;
 	public LocationManager manager;
 	public LocationListener listener;
@@ -34,9 +35,12 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 		setContentView(R.layout.activity_main);
 		db = (new SQLHelper(this)).getWritableDatabase();
 		list = (ListView)findViewById(R.id.list);
+		create = (Button)findViewById(R.id.create);
+		create.setOnClickListener(this);
 		if (savedInstanceState != null && savedInstanceState.containsKey("flag"))
 			flag = savedInstanceState.getInt("flag");
-		startListening();
+		if (savedInstanceState == null || !savedInstanceState.containsKey("listening") || !savedInstanceState.getBoolean("listening"))
+			startListening();
 		
 	}
 	
@@ -47,6 +51,7 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 	}
 	
 	public void onSaveInstanceState(Bundle outState) {
+		outState.putBoolean("listening", true);
 		outState.putInt("flag", flag);
 	}
 
@@ -57,18 +62,18 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 		return true;
 	}
 	
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode,
+            Intent data) {
+        if (requestCode == 2) {
+        	Toast.makeText(this,"You will be notified the next time you are there.",0).show();
+            //startListening();
+        }
+    }
 	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch(item.getItemId()) {
-		case R.id.create:
-			Intent i = null;
-			if (flag == LOCATIONS)
-				i = new Intent(MainActivity.this, LocationActivity.class);
-			else
-				i = new Intent(MainActivity.this, NewActivity.class);
-			startActivity(i,null);
-			return true;
 		case R.id.locations:
 			loadList(LOCATIONS);
 			return true;
@@ -80,21 +85,29 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 		}
 	}
 	
-	public void sendNotifications(int location) {
-		Toast.makeText(this,"Sent out notification "+location,1).show();
+	public void sendNotifications(int location, String name) {
+		Cursor c = db.rawQuery("SELECT description FROM things WHERE location = "+location, null);
+		NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+		
+		if (c.moveToFirst()) do {
+			Notification.Builder builder = new Notification.Builder(this)
+		    .setContentTitle("You're at "+name+"!")
+		    .setSmallIcon(R.drawable.ic_launcher)
+		    .setContentText(c.getString(0));
+			nm.notify((int)(System.currentTimeMillis()/1000),builder.build());
+		} while (c.moveToNext());
 	}
+	
 	private void startListening() {
 		manager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
 		listener = new LocationListener() {
 			public void onLocationChanged(Location location) {
-				Toast.makeText(getApplication(),"Location changed",0).show();
 				ArrayList<Place> locations = getLocations();
 				for (Place p : locations) {
 					float[] results = new float[3];
 					Location.distanceBetween(location.getLatitude(), location.getLongitude(), p.lat, p.lng, results);
-					Toast.makeText(getApplication(),"Location changed = "+results[0],0).show();
 					if (results[0] < 100) {
-						sendNotifications(p.id);
+						sendNotifications(p.id, p.name);
 					}
 				}
 				
@@ -132,12 +145,14 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 	private void loadList(int flag) {
 		this.flag = flag;
 		if (flag == LOCATIONS) {
+			create.setText("New Location");
 			ArrayList<Place> locations = getLocations();
 			if (locations.isEmpty()) 
 				Toast.makeText(this,"No Locations",1).show();
 			//else 
 				list.setAdapter(new ArrayAdapter<Place>(this, android.R.layout.simple_list_item_1, locations));
 		} else if (flag == LIST) {
+			create.setText("New Task");
 			ArrayList<Item> items = getItems();
 			if (items.isEmpty()) 
 				Toast.makeText(this,"Nothing to do!",1).show();
@@ -150,7 +165,6 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 	
 	public void onItemClick(AdapterView<?> parent, View view,int position, long id) {	
 		Intent i = null;
-		Toast.makeText(this,"selected",1).show();
 		Bundle extras = new Bundle();
 		if (flag == LOCATIONS) {
 			i = new Intent(MainActivity.this, LocationActivity.class);
@@ -166,6 +180,14 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 		}
 	}
 
+	public void onClick(View v) {
+		Intent i = null;
+		if (flag == LOCATIONS)
+			i = new Intent(MainActivity.this, LocationActivity.class);
+		else
+			i = new Intent(MainActivity.this, NewActivity.class);
+		startActivityForResult(i,2);
+	}
 	private class Item {
 		public final String text;
 		public final int id;

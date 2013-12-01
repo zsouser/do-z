@@ -1,7 +1,8 @@
 package com.example.doz;
 
 import android.os.Bundle;
-import android.app.Activity;
+import java.util.Calendar;
+import android.app.*;
 import android.view.Menu;
 import java.util.ArrayList;
 import android.widget.*;
@@ -23,6 +24,7 @@ public class NewActivity extends Activity {
 	public SQLiteDatabase db;
 	public int locationId;
 	public int selectedIndex;
+	public AlarmManager alarmManager;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -89,6 +91,7 @@ public class NewActivity extends Activity {
 	public void delete() {
 		if (getIntent() != null && getIntent().hasExtra("id")) {
 			db.execSQL("DELETE FROM things WHERE id = "+getIntent().getExtras().getInt("id"));
+			cancelAlarm(getIntent().getExtras().getInt("id"));
 		}
 	}
 	
@@ -114,7 +117,8 @@ public class NewActivity extends Activity {
 							""+locationId,
 							""+getIntent().getExtras().getInt("id")
 					});
-			// cancel old alarm
+			cancelAlarm(getIntent().getExtras().getInt("id"));
+			createAlarm(getIntent().getExtras().getInt("id"));
 		} else {
 			int id = locationId;
 			if (id < 0) id = 0;
@@ -127,9 +131,57 @@ public class NewActivity extends Activity {
 					""+time.getCurrentHour(),
 					""+time.getCurrentMinute(),
 					""+id
-			}); // gotta get the location id from 
+			});
+			Cursor c = db.rawQuery("SELECT id FROM things ORDER BY id DESC LIMIT 1",null);
+			if (c.moveToFirst())
+				createAlarm(c.getInt(0));
+			else Toast.makeText(this,"No alarm set",0).show();
 		}
-		// create alarm
+	}
+	
+	private void createAlarm(int id) {
+		Cursor c = db.rawQuery("SELECT description FROM things WHERE id = "+id,null);
+		String text = "NOTHING";
+		if (c.moveToFirst()) {
+			text = c.getString(0);
+		}
+		Calendar calendar = Calendar.getInstance();
+	     
+	      calendar.set(Calendar.MONTH, date.getMonth());
+	      calendar.set(Calendar.YEAR, date.getYear());
+	      calendar.set(Calendar.DAY_OF_MONTH, date.getDayOfMonth());
+	 
+	      calendar.set(Calendar.HOUR_OF_DAY, time.getCurrentHour());
+	      calendar.set(Calendar.MINUTE, time.getCurrentMinute());
+	      calendar.set(Calendar.SECOND, 0);
+	     
+	      Intent myIntent = new Intent(NewActivity.this, AlarmReceiver.class);
+	      
+	      Bundle extras = new Bundle();
+	      extras.putInt("id", id);
+	      extras.putString("text",text);
+	      
+	      myIntent.putExtras(extras);
+	      PendingIntent pendingIntent = PendingIntent.getBroadcast(NewActivity.this, id, myIntent,PendingIntent.FLAG_ONE_SHOT);
+	      alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
+	      alarmManager.set(AlarmManager.RTC, calendar.getTimeInMillis(), pendingIntent);
+	    
+	}
+	
+	private void cancelAlarm(int id) {
+		Cursor c = db.rawQuery("SELECT description FROM things WHERE id = "+id,null);
+		String text = "NOTHING";
+		if (c.moveToFirst()) {
+			text = c.getString(0);
+		}
+		alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
+		Intent myIntent = new Intent(NewActivity.this, AlarmReceiver.class);
+	    Bundle extras = new Bundle();
+	    extras.putInt("id", id);
+	    extras.putString("text", text);
+	    myIntent.putExtras(extras);
+		PendingIntent pendingIntent = PendingIntent.getBroadcast(NewActivity.this, id, myIntent,PendingIntent.FLAG_ONE_SHOT);
+	    alarmManager.cancel(pendingIntent);
 	}
 	
 	@Override

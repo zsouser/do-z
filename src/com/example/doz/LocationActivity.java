@@ -7,8 +7,7 @@ import android.os.Bundle;
 
 import com.google.android.gms.maps.*;
 import com.google.android.gms.maps.GoogleMap.*;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.*;
 
 import android.database.sqlite.*;
 import android.database.*;
@@ -22,7 +21,7 @@ import android.view.*;
 import android.widget.*;
 import android.widget.Toast;
 
-public class LocationActivity extends Activity implements OnMapLongClickListener {
+public class LocationActivity extends Activity implements OnMapClickListener, OnMarkerClickListener {
 
 	public GoogleMap map;
 	public LocationManager manager;
@@ -43,26 +42,53 @@ public class LocationActivity extends Activity implements OnMapLongClickListener
 		
 		name = (EditText) findViewById(R.id.name);
 		
-		if (getIntent() != null && getIntent().hasExtra("id")) {
-			getData(getIntent().getExtras().getInt("id"));
-		} else {
-			map.setOnMapLongClickListener(this);
-		}
+		
 		
 		if (savedInstanceState != null && savedInstanceState.containsKey("name")) {
 			name.setText(savedInstanceState.getString("name"));
 		}
-		if (savedInstanceState != null && savedInstanceState.containsKey("lat") && savedInstanceState.containsKey("lng")) {
+		if (savedInstanceState != null && !savedInstanceState.containsKey("id") && savedInstanceState.containsKey("lat") && savedInstanceState.containsKey("lng")) {
 			here = new LatLng(savedInstanceState.getDouble("lat"),savedInstanceState.getDouble("lng"));
 			map.moveCamera(CameraUpdateFactory.newLatLngZoom(here,15));
 		}
 		
 		manager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
-		listener = getLocationListener();
-		manager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 6000, 0, listener);
+		listener = new LocationListener() {
+			public void onLocationChanged(Location location) {
+				here = new LatLng(location.getLatitude(),location.getLongitude());
+				map.clear();
+				map.moveCamera(CameraUpdateFactory.newLatLngZoom(here,15));
+				map.addMarker(new MarkerOptions().position(here).title("You Are Here"));
+				manager.removeUpdates(this);
+				if (getIntent() != null && getIntent().hasExtra("id")) {
+					map.clear();
+					getData(getIntent().getExtras().getInt("id"));
+				}
+				
+			}
+			public void onStatusChanged(String provider, int status, Bundle extras) { }
+			public void onProviderEnabled(String provider) {
+				Toast.makeText(getApplication(),(CharSequence)("Provider " + provider + " enabled"),0).show();
+			}
+			public void onProviderDisabled(String provider) {
+				Toast.makeText(getApplication(),(CharSequence)("Provider " + provider + " enabled"),0).show();
+			}
+		};
+		manager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, listener);
+		
+		if (getIntent() != null && getIntent().hasExtra("id")) {
+			getData(getIntent().getExtras().getInt("id"));
+		} else {
+			map.setOnMapClickListener(this);
+			map.setOnMarkerClickListener(this);
+		}
 	}
 	
-	public void onMapLongClick(LatLng point) {
+	public boolean onMarkerClick(Marker m) {
+		onMapClick(m.getPosition());
+		return true;
+	}
+	public void onMapClick(LatLng point) {
 		if (name.getText().toString().isEmpty()) {
 			name.requestFocus();
 			Toast.makeText(this,(CharSequence)"Please name the location",1).show();
@@ -120,26 +146,11 @@ public class LocationActivity extends Activity implements OnMapLongClickListener
 		Cursor c = db.rawQuery("SELECT name,  lat, lng FROM locations WHERE id = "+id,null);
 		if (c.moveToFirst()) {
 			name.setText(c.getString(0));
-			here = new LatLng(c.getDouble(1),c.getDouble(2));
-			map.moveCamera(CameraUpdateFactory.newLatLngZoom(here,15));
-			map.addMarker(new MarkerOptions().position(here));
+			LatLng loc = new LatLng(c.getDouble(1),c.getDouble(2));
+			map.moveCamera(CameraUpdateFactory.newLatLngZoom(loc,15));
+			map.addMarker(new MarkerOptions().position(loc));
 		}
 	}
 	
-	private LocationListener getLocationListener() {
-		return new LocationListener() {
-			public void onLocationChanged(Location location) {
-				here = new LatLng(location.getLatitude(),location.getLongitude());
-				map.moveCamera(CameraUpdateFactory.newLatLngZoom(here,15));
-			}
-			public void onStatusChanged(String provider, int status, Bundle extras) { }
-			public void onProviderEnabled(String provider) {
-				Toast.makeText(getApplication(),(CharSequence)("Provider " + provider + " enabled"),0).show();
-			}
-			public void onProviderDisabled(String provider) {
-				Toast.makeText(getApplication(),(CharSequence)("Provider " + provider + " enabled"),0).show();
-			}
-		};
-	}
 
 }
