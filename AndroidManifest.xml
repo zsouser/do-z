@@ -57,7 +57,7 @@
         </activity>
         <activity
             android:name="com.example.doz.LocationActivity"
-            android:label="@string/title_activity_location" >
+            android:label="Do Z - Location" >
         </activity>
 
         <receiver

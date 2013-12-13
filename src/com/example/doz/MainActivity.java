@@ -66,7 +66,7 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 	protected void onActivityResult(int requestCode, int resultCode,
             Intent data) {
         if (requestCode == 2) {
-        	Toast.makeText(this,"You will be notified the next time you are there.",0).show();
+        	//Toast.makeText(this,"You will be notified the next time you are there.",0).show();
             //startListening();
         }
     }
@@ -120,7 +120,7 @@ public class MainActivity extends Activity implements ListView.OnItemClickListen
 				Toast.makeText(getApplication(),(CharSequence)("Provider " + provider + " enabled"),0).show();
 			}
 		};
-		manager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 30000, 100, listener);
+		manager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 30000, 150, listener);
 
 	}
 	

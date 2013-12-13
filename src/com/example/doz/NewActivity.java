@@ -263,7 +263,6 @@ public class NewActivity extends Activity {
 		    	}
 		    	//selectedIndex = position;
 		    	locationId = ((Location)parentView.getAdapter().getItem(position)).id;
-		    	Toast.makeText(getApplication(),(CharSequence)(""+position),0).show();
 		    }
 
 		    @Override
@@ -277,8 +276,9 @@ public class NewActivity extends Activity {
 			int i = 0;
 			for (Location l : getLocations()) {
 				if (l.id == bundle.getInt("location")) {
-					spinner.setSelection(i+2);
+					spinner.setSelection(i);
 				}
+				i++;
 			}
 		}
 	}
